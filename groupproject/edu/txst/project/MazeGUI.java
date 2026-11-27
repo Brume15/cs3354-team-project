@@ -41,6 +41,7 @@ public class MazeGUI extends JFrame {
 					case KeyEvent.VK_LEFT -> engine.movePlayer(0, -1);
 					case KeyEvent.VK_RIGHT -> engine.movePlayer(0, 1);
 				}
+				infoPanel.setInfoSteps(engine.getSteps());
 				gamePanel.repaint();
 
 				// Check for victory
@@ -88,6 +89,7 @@ public class MazeGUI extends JFrame {
 			originalBoard = loader.load(selectedFile.getAbsolutePath());
 			currentBoard = originalBoard.clone();
 			engine = new GameEngine(currentBoard);
+			infoPanel.setInfoSteps(engine.getSteps());
 
 			resetItem.setEnabled(true);
 			gamePanel.setBoard(currentBoard);
@@ -99,6 +101,7 @@ public class MazeGUI extends JFrame {
 		if (originalBoard != null) {
 			currentBoard = originalBoard.clone();
 			engine = new GameEngine(currentBoard);
+			infoPanel.setInfoSteps(engine.getSteps());
 			gamePanel.setBoard(currentBoard);
 			gamePanel.repaint();
 		}
@@ -170,6 +173,7 @@ public class MazeGUI extends JFrame {
 				case 0 -> g.setColor(Color.LIGHT_GRAY); // Floor
 				case 1 -> g.setColor(Color.DARK_GRAY); // Wall
 				case 2 -> g.setColor(Color.YELLOW); // Coin
+				case 4 -> g.setColor(Color.RED); // Trap: blocks movement and costs 3 steps
 				case 5 -> g.setColor(Color.MAGENTA); // Exit
 				case 6 -> g.setColor(Color.BLUE); // Player
 				default -> g.setColor(Color.BLACK);
