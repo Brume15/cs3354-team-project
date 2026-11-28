@@ -11,6 +11,10 @@ public class GameEngine {
 	private static final int FLOOR = 0;
 	private static final int WALL = 1;
 	private static final int COIN = 2;
+	/** Cell code for a reusable trap that blocks movement. */
+	private static final int TRAP = 4;
+	/** Number of steps charged for each attempt to enter a trap. */
+	private static final int TRAP_PENALTY = 3;
 	private static final int EXIT = 5;
 	private static final int PLAYER = 6;
 
@@ -49,7 +53,17 @@ public class GameEngine {
 	}
 
 	/**
-	 * Attempts to move the player.
+	 * Returns the step total, including trap penalties.
+	 *
+	 * @return the number of steps recorded on the current board
+	 */
+	public int getSteps() {
+		return board.stepCounter.getSteps();
+	}
+
+	/**
+	 * Attempts to move the player. A trap adds exactly three steps without
+	 * moving the player or removing the trap.
 	 * 
 	 * @param dRow Change in row (-1, 0, 1)
 	 * @param dCol Change in column (-1, 0, 1)
@@ -62,6 +76,13 @@ public class GameEngine {
 		// Check for Walls or Out of Bounds
 		if (targetCell == WALL || targetCell == -1) {
 			return; // Movement blocked
+		}
+
+		if (targetCell == TRAP) {
+			for (int i = 0; i < TRAP_PENALTY; i++) {
+				board.stepCounter.increaseSteps();
+			}
+			return; // Stop before changing either cell or counting a normal move.
 		}
 
 		// Move the Player

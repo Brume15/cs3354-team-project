@@ -1,0 +1,162 @@
+UNDERSTANDING THE GAME AND THE TRAP FEATURE
+
+Start here
+This is a small Java maze game. You control the blue square with the arrow keys.
+Try to reach the magenta exit. Dark gray squares are walls, light gray squares
+are paths, yellow squares are coins, and red squares are traps. Collecting coins
+is useful for score; the requirements do not say all coins must be collected.
+The intended score is 5 times coins collected minus steps used. Fewer steps
+and more coins give a better score. Negative scores are possible.
+
+This starter intentionally contains bugs. Your team's job is to finish the
+existing game and add one custom feature. Your part is the trap. You do not
+need to invent a new game or rewrite the whole program.
+
+What your trap does
+Imagine the player is standing directly left of a trap. Pressing Right is an
+attempt to enter it. The engine adds 3 to the step total, but the player stays
+where they were. The trap is still there. Pressing Right again adds another 3.
+The player must find a path around it. There is no timer and no lost keyboard
+turn: "freeze" here means this attempted move does not change the position.
+A level builder must leave a route around a trap so the exit is reachable.
+
+The level is data
+Each CSV is a 6-row by 10-column grid of numbers. Each number identifies a tile:
+0 = floor, 1 = wall, 2 = coin, 4 = trap, 5 = exit, 6 = player.
+Rows and columns in Java start at zero. In the demo, the player is at row 1,
+column 1 and the trap is at row 1, column 2.
+4 identifies the TYPE of tile. 3 is the COST of triggering it. These are separate
+ideas; the tile code does not calculate the cost.
+The existing CSV loader already reads integers, including 4. It needs no change.
+
+How the classes work together
+BoardLoader: an interface describing a way to load a Board from a filename.
+CSVBoardLoader: implements that interface by reading numbers from a CSV file.
+Board: holds the grid, gets or changes cells, and holds the StepCounter.
+StepCounter: stores a private steps value and changes it through methods.
+GameEngine: knows the player's position and decides what a move should do.
+MazeGUI: draws the board, receives keys, and updates the visible labels.
+MazeGUI's GamePanel draws tiles; its InfoPanel displays steps and coins.
+
+The flow for one arrow press is:
+keyboard -> MazeGUI -> GameEngine.movePlayer -> Board / StepCounter
+         -> MazeGUI reads engine.getSteps -> label refresh and board repaint
+The engine decides the rule. The GUI displays the result. Repainting only draws
+the current state; it does not move the player or trigger another penalty.
+
+Your code, piece by piece
+Open groupproject/edu/txst/project/GameEngine.java.
+
+private static final int TRAP = 4;
+This gives the tile number a readable name. private keeps it inside this class;
+static means it belongs to the class; final means the value cannot be reassigned.
+
+private static final int TRAP_PENALTY = 3;
+This names the rule's cost, so the code does not hide an unexplained number.
+
+movePlayer already calculates a target row, target column, and target cell.
+It first rejects a wall or a position outside the board. Your trap block follows:
+
+if (targetCell == TRAP) {
+    for (int i = 0; i < TRAP_PENALTY; i++) {
+        board.stepCounter.increaseSteps();
+    }
+    return;
+}
+
+The if asks whether the destination is a trap. The loop runs with i equal to
+0, 1, and 2: three times. Each increaseSteps() adds one, giving a total of +3.
+The loop reuses the existing counter API instead of reaching into its private
+steps variable. return ends this attempt immediately.
+All the existing position changes are BELOW that return. They never run for
+a trap, so neither the player cell nor the trap cell changes. We do not need
+to save and restore either cell. Because the trap stays in the grid, the next
+attempt finds the same 4 and charges another 3 automatically.
+
+public int getSteps() { return board.stepCounter.getSteps(); }
+This gives the GUI a way to ask the engine for the current total. It delegates
+to the existing counter; it does not create a second counter that might disagree.
+
+In MazeGUI.java:
+case 4 -> g.setColor(Color.RED);
+This chooses red when GamePanel draws a trap. The existing fillRect draws it.
+
+infoPanel.setInfoSteps(engine.getSteps());
+After keyboard handling, this reads the updated total and passes it to the
+existing label setter, which uses JLabel.setText(). The same refresh after
+opening or resetting a level prevents an old penalty total staying on screen.
+
+The Javadoc on the constants, getter, and updated move method explains the
+added behavior. The team's complete documentation pass is still separate work.
+
+Why this fits object-oriented programming
+The classes have separate responsibilities: storage, counting, rules, display,
+and file loading. The feature extends those existing responsibilities with a
+small change. Encapsulation appears in StepCounter's private steps field and
+its public methods. BoardLoader is abstraction: callers can work with a loader
+interface while CSVBoardLoader supplies the implementation. The starter also
+uses inheritance for Swing panels and JFrame, but the trap itself needs no new
+subclass. A TrapTile hierarchy would add complexity to an integer-grid game
+without helping this one rule. Board.stepCounter is public in the starter;
+this feature reuses that design rather than claiming to fix all encapsulation.
+
+How to coordinate with your teammates
+Benjamin's normal-move counter must run AFTER the trap check returns.
+Successful ordinary move: +1. Trap attempt: +3 total. Wall/edge attempt: +0.
+Do not add a general +1 in the GUI after every key: that would charge walls,
+non-arrow keys, and traps incorrectly.
+Eladio's correct final-score formula will automatically include the trap cost
+because it uses the same step total. The trap must not subtract another 3
+separately when calculating score, or it would apply the penalty twice.
+Tell the level builders to use 4 for traps and leave an alternate path.
+The supplied demo is a feature test, not the team's two required new levels.
+The starter also only searches the first five rows for a player and exit;
+ask the team to fix those loop bounds for sixth-row placements. The demo keeps
+both in the scanned rows. The original level's exit is in the sixth row.
+
+What you can explain after reading and trying the code
+"The engine checks the destination before changing the board. If it finds a
+trap, it calls the step counter three times and returns. Returning before the
+movement code keeps the player still and preserves the trap. The GUI then
+reads the same counter and refreshes the label. Repeated attempts work because
+the trap is never removed. The penalty lowers the eventual score through the
+existing steps term."
+Use this as a practice explanation. Make sure you can point to the return and
+the three loop iterations yourself, and follow your course's AI-use policy.
+
+Quick checks for your understanding
+Why not add 1 and then 3? The specified total is exactly 3 for this attempt.
+Why no new CSV parser? The current parser accepts integer tile codes already.
+Why no teleport-back code? The player is never moved onto the trap.
+Why does Reset clear the penalty? Board.clone creates a fresh StepCounter.
+Can a player walk through a trap by pressing repeatedly? No, it always blocks.
+What changes score by -3? Adding 3 steps to score = -steps + 5 * coins.
+
+GITHUB AND YOUR LAPTOP
+Your original cs3354 folder is a clone of the instructor's whole course repo.
+Its origin points to albertocahdez/cs3354. Cloning downloaded the instructor's
+files and Git history; it did not upload anything to your empty team repo.
+The team repo contains only the relevant groupproject starter and supporting
+files. The instructor source commit is credited in README.txt.
+
+main contains the unchanged starter. feature/trap-tile contains your feature,
+test, demo, and guide. The pull request compares these branches so teammates
+can review your exact contribution before merging it. Remaining bugs on main
+are expected until teammates submit their fixes.
+
+In the team checkout, these read-only commands help you see what is happening:
+git status
+git branch
+git remote -v
+git diff main...feature/trap-tile -- groupproject
+
+For a later edit to your feature, while on feature/trap-tile:
+git add groupproject/edu/txst/project/GameEngine.java
+git commit -m "Describe the specific change"
+git push origin feature/trap-tile
+Only add files you mean to commit. A commit records a local snapshot. A push
+uploads commits to GitHub. A pull request asks the team to review and merge.
+Do not push your feature directly into main before your team's review.
+
+See README.txt for exact compile, launch, and test commands. Launch the team
+checkout, not the untouched instructor clone, when trying the trap feature.
