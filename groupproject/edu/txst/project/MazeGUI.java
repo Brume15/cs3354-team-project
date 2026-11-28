@@ -6,185 +6,175 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.io.File;
 
+/**
+ * The main graphical user interface for the Maze game. 
+ * Handles rendering, user input, and menu interactions.
+ */
 public class MazeGUI extends JFrame {
-	private Board originalBoard;
-	private Board currentBoard;
-	private GameEngine engine;
-	private GamePanel gamePanel;
-	private InfoPanel infoPanel;
-	private JMenuItem resetItem;
-	private int stepCounter;
+    private Board originalBoard;
+    private Board currentBoard;
+    private GameEngine engine;
+    private GamePanel gamePanel;
+    private InfoPanel infoPanel;
+    private JMenuItem resetItem;
 
-	public MazeGUI() {
-		setTitle("16-Bit Maze");
-		setSize(640, 480); // Adjusted for 10x5 grid with scaling
-		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setLocationRelativeTo(null);
+    /** Constructs the main GUI frame and initializes components. */
+    public MazeGUI() {
+        setTitle("16-Bit Maze");
+        setSize(640, 480); 
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+        initMenu();
+        infoPanel = new InfoPanel();
+        gamePanel = new GamePanel();
+        add(infoPanel, BorderLayout.NORTH);
+        add(gamePanel, BorderLayout.CENTER);
 
-		initMenu();
+        addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (engine == null) return;
+                
+                switch (e.getKeyCode()) {
+                    case KeyEvent.VK_UP -> engine.movePlayer(-1, 0);
+                    case KeyEvent.VK_DOWN -> engine.movePlayer(1, 0);
+                    case KeyEvent.VK_LEFT -> engine.movePlayer(0, -1);
+                    case KeyEvent.VK_RIGHT -> engine.movePlayer(0, 1);
+                }
+                
+                infoPanel.setInfoSteps(engine.getSteps());
+                infoPanel.setInfoCoins(engine.getCoins());
+                gamePanel.repaint();
 
-		infoPanel = new InfoPanel();
-		gamePanel = new GamePanel();
-		add(infoPanel, BorderLayout.NORTH);
-		add(gamePanel, BorderLayout.CENTER);
+                if (engine.playerWins()) {
+                    int steps = engine.getSteps();
+                    int coins = engine.getCoins();
+                    int score = (steps * -1) + (coins * 5);
+                    
+                    JOptionPane.showMessageDialog(MazeGUI.this,
+                            "Congratulations! You found the exit.\nYour score: " + score,
+                            "Level Complete", JOptionPane.INFORMATION_MESSAGE);
+                    engine = null;
+                    resetItem.setEnabled(false);
+                }
+            }
+        });
+    }
 
-		// Handle Keyboard Input
-		addKeyListener(new KeyAdapter() {
-			@Override
-			public void keyPressed(KeyEvent e) {
-				if (engine == null)
-					return;
+    private void initMenu() {
+        JMenuBar menuBar = new JMenuBar();
+        JMenu gameMenu = new JMenu("Game");
+        JMenuItem openItem = new JMenuItem("Open");
+        resetItem = new JMenuItem("Reset");
+        resetItem.setEnabled(false); 
+        openItem.addActionListener(e -> openFile());
+        resetItem.addActionListener(e -> resetGame());
+        gameMenu.add(openItem);
+        gameMenu.add(resetItem);
+        menuBar.add(gameMenu);
+        setJMenuBar(menuBar);
+    }
 
-				switch (e.getKeyCode()) {
-					case KeyEvent.VK_UP -> engine.movePlayer(-1, 0);
-					case KeyEvent.VK_DOWN -> engine.movePlayer(1, 0);
-					case KeyEvent.VK_LEFT -> engine.movePlayer(0, -1);
-					case KeyEvent.VK_RIGHT -> engine.movePlayer(0, 1);
-				}
-				infoPanel.setInfoSteps(engine.getSteps());
-				gamePanel.repaint();
+    private void openFile() {
+        JFileChooser fileChooser = new JFileChooser(System.getProperty("user.dir"));
+        int result = fileChooser.showOpenDialog(this);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File selectedFile = fileChooser.getSelectedFile();
+            CSVBoardLoader loader = new CSVBoardLoader();
+            originalBoard = loader.load(selectedFile.getAbsolutePath());
+            currentBoard = originalBoard.clone();
+            engine = new GameEngine(currentBoard);
+            resetItem.setEnabled(true);
+            gamePanel.setBoard(currentBoard);
+            infoPanel.setInfoSteps(0);
+            infoPanel.setInfoCoins(0);
+            gamePanel.repaint();
+        }
+    }
 
-				// Check for victory
-				if (engine.playerWins()) {
-					JOptionPane.showMessageDialog(MazeGUI.this,
-							"Congratulations! You found the exit.\nYour got "
-									+ infoPanel.getInfoSteps() * 1 + infoPanel.getInfoCoins()
-									+ "points",
-							"Level Complete", JOptionPane.INFORMATION_MESSAGE);
+    private void resetGame() {
+        if (originalBoard != null) {
+            currentBoard = originalBoard.clone();
+            engine = new GameEngine(currentBoard);
+            gamePanel.setBoard(currentBoard);
+            infoPanel.setInfoSteps(0);
+            infoPanel.setInfoCoins(0);
+            gamePanel.repaint();
+        }
+    }
 
-					// Optional: Disable engine to prevent movement after win
-					engine = null;
-					resetItem.setEnabled(false);
-				}
-			}
-		});
-	}
+    private class InfoPanel extends JPanel {
+        private JLabel infoSteps;
+        private JLabel infoCoins;
 
-	private void initMenu() {
-		JMenuBar menuBar = new JMenuBar();
-		JMenu gameMenu = new JMenu("Game");
+        public InfoPanel() {
+            this.setLayout(new FlowLayout());
+            this.add(new JLabel("Steps: "));
+            infoSteps = new JLabel("0");
+            this.add(infoSteps);
+            this.add(new JLabel("Coins: "));
+            infoCoins = new JLabel("0");
+            this.add(infoCoins);
+        }
 
-		JMenuItem openItem = new JMenuItem("Open");
-		resetItem = new JMenuItem("Reset");
-		resetItem.setEnabled(false); // Disabled by default
+        public void setInfoSteps(int remainingSteps) {
+            this.infoSteps.setText(Integer.toString(remainingSteps));
+        }
 
-		openItem.addActionListener(e -> openFile());
-		resetItem.addActionListener(e -> resetGame());
+        public int getInfoSteps() {
+            return Integer.parseInt(this.infoSteps.getText());
+        }
 
-		gameMenu.add(openItem);
-		gameMenu.add(resetItem);
-		menuBar.add(gameMenu);
-		setJMenuBar(menuBar);
-	}
+        public void setInfoCoins(int infoCoins) {
+            this.infoCoins.setText(Integer.toString(infoCoins));
+        }
 
-	private void openFile() {
-		JFileChooser fileChooser = new JFileChooser(System.getProperty("user.dir"));
-		int result = fileChooser.showOpenDialog(this);
+        public int getInfoCoins() {
+            return Integer.parseInt(this.infoCoins.getText());
+        }
+    }
 
-		if (result == JFileChooser.APPROVE_OPTION) {
-			File selectedFile = fileChooser.getSelectedFile();
-			CSVBoardLoader loader = new CSVBoardLoader();
+    private class GamePanel extends JPanel {
+        private Board board;
+        private final int TILE_SIZE = 64; 
 
-			// Load and Store
-			originalBoard = loader.load(selectedFile.getAbsolutePath());
-			currentBoard = originalBoard.clone();
-			engine = new GameEngine(currentBoard);
-			infoPanel.setInfoSteps(engine.getSteps());
+        public void setBoard(Board board) {
+            this.board = board;
+        }
 
-			resetItem.setEnabled(true);
-			gamePanel.setBoard(currentBoard);
-			gamePanel.repaint();
-		}
-	}
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            if (board == null) return;
+            for (int r = 0; r < 6; r++) {
+                for (int c = 0; c < 10; c++) {
+                    int cell = board.getCell(r, c);
+                    drawTile(g, cell, c * TILE_SIZE, r * TILE_SIZE);
+                }
+            }
+        }
 
-	private void resetGame() {
-		if (originalBoard != null) {
-			currentBoard = originalBoard.clone();
-			engine = new GameEngine(currentBoard);
-			infoPanel.setInfoSteps(engine.getSteps());
-			gamePanel.setBoard(currentBoard);
-			gamePanel.repaint();
-		}
-	}
+        private void drawTile(Graphics g, int type, int x, int y) {
+            switch (type) {
+                case 0 -> g.setColor(Color.LIGHT_GRAY); // Floor
+                case 1 -> g.setColor(Color.DARK_GRAY);  // Wall
+                case 2 -> g.setColor(Color.YELLOW);     // Coin
+                case 4 -> g.setColor(Color.RED);        // Trap Tile
+                case 5 -> g.setColor(Color.MAGENTA);    // Exit
+                case 6 -> g.setColor(Color.BLUE);       // Player
+                default -> g.setColor(Color.BLACK);
+            }
+            g.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+            g.setColor(Color.WHITE);
+            g.drawRect(x, y, TILE_SIZE, TILE_SIZE); // Grid lines
+        }
+    }
 
-	// Inner class for information panel
-	private class InfoPanel extends JPanel {
-		private JLabel infoSteps;
-		private JLabel infoCoins;
-
-		public InfoPanel() {
-			this.setLayout(new FlowLayout());
-			this.add(new JLabel("Steps: "));
-			// infoRemainingSteps is a label which value can be changed using its method
-			// called
-			// setText
-			infoSteps = new JLabel("0");
-			this.add(infoSteps);
-			this.add(new JLabel("Coins: "));
-			// infoCoins is a label which value can be changed using its method called
-			// setText
-			infoCoins = new JLabel("0");
-			this.add(infoCoins);
-		}
-
-		public void setInfoSteps(int remainingSteps) {
-			this.infoSteps.setText(Integer.toString(remainingSteps));
-		}
-
-		public int getInfoSteps() {
-			return Integer.parseInt(this.infoSteps.getText());
-		}
-
-		public void setInfoCoins(int infoCoins) {
-			this.infoCoins.setText(Integer.toString(infoCoins));
-		}
-
-		public int getInfoCoins() {
-			return Integer.parseInt(this.infoCoins.getText());
-		}
-	}
-
-	// Inner class for custom rendering
-	private class GamePanel extends JPanel {
-		private Board board;
-		private final int TILE_SIZE = 64; // Scale up for visibility
-
-		public void setBoard(Board board) {
-			this.board = board;
-		}
-
-		@Override
-		protected void paintComponent(Graphics g) {
-			super.paintComponent(g);
-			if (board == null)
-				return;
-
-			for (int r = 0; r < 6; r++) {
-				for (int c = 0; c < 10; c++) {
-					int cell = board.getCell(r, c);
-					drawTile(g, cell, c * TILE_SIZE, r * TILE_SIZE);
-				}
-			}
-		}
-
-		private void drawTile(Graphics g, int type, int x, int y) {
-			// Placeholder colors until you link the sprite loading logic
-			switch (type) {
-				case 0 -> g.setColor(Color.LIGHT_GRAY); // Floor
-				case 1 -> g.setColor(Color.DARK_GRAY); // Wall
-				case 2 -> g.setColor(Color.YELLOW); // Coin
-				case 4 -> g.setColor(Color.RED); // Trap: blocks movement and costs 3 steps
-				case 5 -> g.setColor(Color.MAGENTA); // Exit
-				case 6 -> g.setColor(Color.BLUE); // Player
-				default -> g.setColor(Color.BLACK);
-			}
-			g.fillRect(x, y, TILE_SIZE, TILE_SIZE);
-			g.setColor(Color.WHITE);
-			g.drawRect(x, y, TILE_SIZE, TILE_SIZE); // Grid lines
-		}
-	}
-
-	public static void main(String[] args) {
-		SwingUtilities.invokeLater(() -> new MazeGUI().setVisible(true));
-	}
+    /**
+     * Main entry point for the application.
+     * @param args command line arguments
+     */
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new MazeGUI().setVisible(true));
+    }
 }
