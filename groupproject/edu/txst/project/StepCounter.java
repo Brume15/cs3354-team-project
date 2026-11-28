@@ -1,21 +1,31 @@
 package edu.txst.project;
 
+/**
+ * Tracks the number of steps taken by the player.
+ */
 public class StepCounter {
-	private int steps;
+    private int steps;
 
-	public int getSteps() {
-		return steps;
-	}
+    /** Initializes the step counter to zero. */
+    public StepCounter() {
+        steps = 0;
+    }
 
-	public void increaseSteps() {
-		steps++;
-	}
+    /**
+     * Gets the current step count.
+     * @return number of steps
+     */
+    public int getSteps() {
+        return steps;
+    }
 
-	public void resetSteps() {
-		steps = 0;
-	}
+    /** Increments the step count by one. */
+    public void increaseSteps() {
+        steps++;
+    }
 
-	public StepCounter() {
-		steps = 0;
-	}
+    /** Resets the step count to zero. */
+    public void resetSteps() {
+        steps = 0;
+    }
 }
